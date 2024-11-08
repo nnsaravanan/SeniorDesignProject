@@ -1,47 +1,45 @@
 import ezdxf
-import networkx as nx
+import matplotlib.pyplot as plt
 
-# Load the DXF file
-doc = ezdxf.readfile("path/to/floorplan.dxf")
-modelspace = doc.modelspace()
+def plot_dwg(file_path):
+    # Load the DWG file
+    dwg = ezdxf.readfile(file_path)
+    
+    # Set up the plot
+    plt.figure()
+    ax = plt.gca()
+    
+    # Loop through each layout in the DWG (usually 'Model' space contains the drawing)
+    for layout in dwg.layouts:
+        for entity in layout:
+            if entity.dxftype() == 'LINE':
+                # Extract the line start and end points
+                x1, y1, z1 = entity.dxf.start
+                x2, y2, z2 = entity.dxf.end
+                plt.plot([x1, x2], [y1, y2], color="black")
+            elif entity.dxftype() == 'CIRCLE':
+                # Extract the circle center and radius
+                center = entity.dxf.center
+                radius = entity.dxf.radius
+                circle = plt.Circle((center[0], center[1]), radius, color="blue", fill=False)
+                ax.add_patch(circle)
+            elif entity.dxftype() == 'ARC':
+                # Extract arc center, radius, and angles
+                center = entity.dxf.center
+                radius = entity.dxf.radius
+                start_angle = entity.dxf.start_angle
+                end_angle = entity.dxf.end_angle
+                arc = plt.Arc((center[0], center[1]), radius*2, radius*2, angle=0,
+                              theta1=start_angle, theta2=end_angle, color="red")
+                ax.add_patch(arc)
+            # Add more entity types as needed (e.g., POLYLINE, LWPOLYLINE)
 
-# Extract rooms and hallways
-rooms = []  # This will hold room entities (likely polygons)
-hallways = []  # This will hold hallway entities (lines or polygons)
+    # Set aspect ratio and show the plot
+    ax.set_aspect('equal')
+    plt.xlabel("X")
+    plt.ylabel("Y")
+    plt.title("DWG File Display")
+    plt.show()
 
-for entity in modelspace:
-    if entity.dxftype() == 'LWPOLYLINE':
-        if "ROOM" in entity.dxf.layer:
-            rooms.append(entity)
-        elif "HALLWAY" in entity.dxf.layer:
-            hallways.append(entity)
-
-# Create a graph to represent connections between rooms
-G = nx.Graph()
-
-# Add rooms as nodes, using the center of each room polygon as a node position
-for idx, room in enumerate(rooms):
-    vertices = room.get_points("xy")
-    x_coords, y_coords = zip(*vertices)
-    room_center = (sum(x_coords) / len(x_coords), sum(y_coords) / len(y_coords))
-    G.add_node(idx, pos=room_center)
-
-# Add hallways as edges between room nodes based on spatial proximity
-for hallway in hallways:
-    hallway_center = hallway.get_center()  # Approximate center of hallway
-    # Connect rooms that are near this hallway
-    for room_idx, room in enumerate(rooms):
-        room_center = G.nodes[room_idx]["pos"]
-        if is_near(hallway_center, room_center):  # Define `is_near` based on distance
-            G.add_edge(room_idx, room_idx + 1)  # This should connect appropriate rooms
-
-# Define starting and target room indices (based on room numbering)
-start_room = 0  # Example start room
-target_room = len(rooms) - 1  # Example target room
-
-# Find the shortest path
-try:
-    path = nx.shortest_path(G, source=start_room, target=target_room)
-    print("Path from room {} to room {}: {}".format(start_room, target_room, path))
-except nx.NetworkXNoPath:
-    print("No path found between rooms.")
+# Replace 'path_to_your_file.dwg' with your DWG file path
+plot_dwg('floorplan2.dxf')
